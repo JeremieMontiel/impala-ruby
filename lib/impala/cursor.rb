@@ -136,6 +136,8 @@ module Impala
           Float::NAN
         elsif value == 'Infinity'
           Float::INFINITY
+        elsif value == '-Infinity'
+          -Float::INFINITY
         else
           value.to_f
         end
