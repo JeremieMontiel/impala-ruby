@@ -69,7 +69,7 @@ describe Impala::Connection do
       @connection.stubs(:open? => true, :sanitize_query => 'sanitized_query', :check_result => nil)
     end
 
-    it 'should call Protocol::ImpalaService::Client#executeAndWait with the sanitized query' do
+    it 'should call Protocol::ImpalaService::Client#executeAndWait with the sanitized query when it is synchronous' do
       query = Impala::Protocol::Beeswax::Query.new
       query.query = 'sanitized_query'
       query.configuration = []
@@ -80,8 +80,25 @@ describe Impala::Connection do
 
       @connection.execute('query')
     end
+    
+    it 'should call Protocol::ImpalaService::Client#query with the sanitized query when it is asynchronous' do
+      query = Impala::Protocol::Beeswax::Query.new
+      query.query = 'sanitized_query'
+      query.configuration = []
 
-    it 'should call Protocol::ImpalaService::Client#executeAndWait with the hadoop_user and configuration if passed as parameter' do
+      @service = stub(:get_state => 4)
+      @service.expects(:query).with(query).once
+      @connection.instance_variable_set('@service', @service)
+
+      
+      opt = {
+        :asynchronous => true
+      }
+      
+      @connection.execute('query',opt)
+    end
+
+    it 'should call Protocol::ImpalaService::Client#executeAndWait with the hadoop_user and configuration if passed as parameter (synchronous case)' do
       query = Impala::Protocol::Beeswax::Query.new
       query.query = 'sanitized_query'
       query.hadoop_user = 'impala'
@@ -98,5 +115,25 @@ describe Impala::Connection do
       }
       @connection.execute('query', opt)
     end
+    
+    it 'should call Protocol::ImpalaService::Client#query with the hadoop_user and configuration if passed as parameter (asynchronous case)' do
+      query = Impala::Protocol::Beeswax::Query.new
+      query.query = 'sanitized_query'
+      query.hadoop_user = 'impala'
+      query.configuration = %w|NUM_SCANNER_THREADS=8 MEM_LIMIT=3221225472|
+
+      @service = stub(:get_state => 4)
+      @service.expects(:query).with(query).once
+      @connection.instance_variable_set('@service', @service)
+
+      opt = {
+        :user => 'impala',
+        :num_scanner_threads => 8,
+        :mem_limit => 3221225472,
+        :asynchronous => true
+      }
+      @connection.execute('query', opt)
+    end
+
   end
 end
