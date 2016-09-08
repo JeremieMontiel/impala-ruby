@@ -3,7 +3,7 @@
 #end
 require 'impala'
 
-describe "Testsing asynchronous queries" do
+describe "Testing asynchronous queries - Dev tests TO BE REMOVED" do
 
   context "checks Cancel" do
   
