@@ -56,6 +56,7 @@ module Impala
     # @param [Hash] query_options the options to set user and configuration
     #   except for :user, see TImpalaQueryOptions in ImpalaService.thrift
     # @option query_options [String] :user the user runs the query
+    #   * *:asynchronous* (Boolean): Specify if the query has to be ran asynchronously or not
     # @return [Array<Hash>] an array of hashes, one for each row.
     def query(raw_query, query_options = {})
       execute(raw_query, query_options).fetch_all
@@ -66,12 +67,16 @@ module Impala
     # @param [Hash] query_options the options to set user and configuration
     #   except for :user, see TImpalaQueryOptions in ImpalaService.thrift
     # @option query_options [String] :user the user runs the query
+    #   * *:asynchronous* (Boolean): Specify if the query has to be ran asynchronously or not
     # @return [Cursor] a cursor for the result rows
     def execute(raw_query, query_options = {})
       raise ConnectionError.new("Connection closed") unless open?
 
+      asynchronous_query = query_options[:asynchronous] if query_options.has_key?(:asynchronous)
       query = sanitize_query(raw_query)
       handle = send_query(query, query_options)
+
+      sleep(0.1) until @service.get_state(handle) != Protocol::Beeswax::QueryState::RUNNING if asynchronous_query
 
       check_result(handle)
       Cursor.new(handle, @service)
@@ -91,12 +96,17 @@ module Impala
       query = Protocol::Beeswax::Query.new
       query.query = sanitized_query
 
+      asynchronous_query = query_options.has_key?(:asynchronous) ? query_options.delete(:asynchronous) : false
       query.hadoop_user = query_options.delete(:user) if query_options[:user]
       query.configuration = query_options.map do |key, value|
         "#{key.upcase}=#{value}"
       end
 
-      @service.executeAndWait(query, LOG_CONTEXT_ID)
+      if asynchronous_query
+        @service.query(query)
+      else
+        @service.executeAndWait(query, LOG_CONTEXT_ID)
+      end
     end
 
     def check_result(handle)

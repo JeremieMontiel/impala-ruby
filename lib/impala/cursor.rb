@@ -129,8 +129,18 @@ module Impala
         end
       when 'tinyint', 'smallint', 'int', 'bigint'
         value.to_i
-      when 'double', 'float', 'decimal'
+      when 'float', 'decimal'
         value.to_f
+      when 'double'
+        if value == 'NaN'
+          Float::NAN
+        elsif value == 'Infinity'
+          Float::INFINITY
+        elsif value == '-Infinity'
+          -Float::INFINITY
+        else
+          value.to_f
+        end
       when "timestamp"
         Time.parse(value)
       else
